@@ -5,13 +5,9 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
-from statsmodels.tsa.seasonal import seasonal_decompose
-from sklearn.linear_model import LinearRegression
-from scipy import stats
 
-# ---- Data Generation ----
+# Generazione dati di esempio
 def generate_sample_data(n_weeks=52):
-    """Generate sample shipping data with seasonal patterns."""
     dates = pd.date_range(start='2023-01-01', periods=n_weeks, freq='W')
     routes = ['ASIA-EUR', 'EUR-USA', 'ASIA-USA']
     container_sizes = ['20ft', '40ft']
@@ -25,11 +21,8 @@ def generate_sample_data(n_weeks=52):
             base_volume = np.random.uniform(100, 500)
             
             for date in dates:
-                # Add seasonal variation
                 seasonal_factor = 1 + 0.2 * np.sin(2 * np.pi * date.month / 12)
-                # Add random variation to price
                 price = base_price * seasonal_factor * (1 + np.random.uniform(-0.2, 0.2))
-                # Volume responds to price changes
                 price_effect = -0.3 * (price - base_price) / base_price
                 volume = base_volume * seasonal_factor * (1 + price_effect + np.random.uniform(-0.1, 0.1))
                 
@@ -44,21 +37,17 @@ def generate_sample_data(n_weeks=52):
     
     return pd.DataFrame(data)
 
-# ---- Elasticity Analysis ----
+# Calcolo elasticità
 def calculate_elasticities(df):
-    """Calculate price elasticity for each route-size combination."""
     elasticities = {}
-    
     for route in df['route'].unique():
         for size in df['container_size'].unique():
             mask = (df['route'] == route) & (df['container_size'] == size)
             route_data = df[mask].copy()
             
-            # Calculate percentage changes
             price_pct_change = route_data['price'].pct_change()
             volume_pct_change = route_data['volume'].pct_change()
             
-            # Filter valid data points
             valid_mask = (abs(price_pct_change) > 0.001) & ~np.isinf(volume_pct_change/price_pct_change)
             if valid_mask.sum() > 0:
                 point_elasticities = volume_pct_change[valid_mask] / price_pct_change[valid_mask]
@@ -67,22 +56,19 @@ def calculate_elasticities(df):
             else:
                 elasticity = -0.3
             
-            # Clip elasticity to reasonable range
             elasticity = np.clip(elasticity, -2.0, -0.1)
             elasticities[(route, size)] = round(elasticity, 3)
     
     return elasticities
 
-# ---- Impact Analysis ----
+# Calcolo impatto variazioni prezzo
 def calculate_impact(df, route, size, price_change_pct, elasticity):
-    """Calculate the impact of price changes on volume and revenue."""
     mask = (df['route'] == route) & (df['container_size'] == size)
     base_data = df[mask].iloc[-1]
     
     base_price = base_data['price']
     base_volume = base_data['volume']
     
-    # Calculate new values
     price_change_pct = price_change_pct / 100
     new_price = base_price * (1 + price_change_pct)
     volume_change_pct = elasticity * price_change_pct
@@ -104,17 +90,16 @@ def calculate_impact(df, route, size, price_change_pct, elasticity):
         'elasticity': elasticity
     }
 
-# ---- Optimization Analysis ----
+# Calcolo prezzo ottimale
 def calculate_optimal_price(base_price, base_volume, elasticity):
-    """Calculate the optimal price based on elasticity."""
     if elasticity >= -1:
-        return base_price * 1.5  # If inelastic, increase price
+        return base_price * 1.5
     else:
         optimal_markup = -1 / elasticity
         return base_price * (1 + optimal_markup)
 
+# Generazione curva di domanda
 def generate_demand_curve(base_price, base_volume, elasticity, points=50):
-    """Generate points for demand and revenue curves."""
     price_range = np.linspace(base_price * 0.5, base_price * 1.5, points)
     volumes = []
     revenues = []
@@ -128,221 +113,13 @@ def generate_demand_curve(base_price, base_volume, elasticity, points=50):
         
     return price_range, volumes, revenues
 
-# ---- Seasonal Analysis ----
-def analyze_seasonality(df, route, size):
-    """Analyze seasonal patterns in price and volume data."""
-    mask = (df['route'] == route) & (df['container_size'] == size)
-    data = df[mask].copy()
-    data.set_index('date', inplace=True)
-    
-    # Perform seasonal decomposition
-    price_decomp = seasonal_decompose(data['price'], period=12)
-    volume_decomp = seasonal_decompose(data['volume'], period=12)
-    
-    # Create visualization
-    fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=('Price Seasonality', 'Price Trend',
-                       'Volume Seasonality', 'Volume Trend')
-    )
-    
-    # Add price components
-    fig.add_trace(
-        go.Scatter(x=data.index, y=price_decomp.seasonal,
-                  name='Price Seasonal', line=dict(color='blue')),
-        row=1, col=1
-    )
-    fig.add_trace(
-        go.Scatter(x=data.index, y=price_decomp.trend,
-                  name='Price Trend', line=dict(color='red')),
-        row=1, col=2
-    )
-    
-    # Add volume components
-    fig.add_trace(
-        go.Scatter(x=data.index, y=volume_decomp.seasonal,
-                  name='Volume Seasonal', line=dict(color='green')),
-        row=2, col=1
-    )
-    fig.add_trace(
-        go.Scatter(x=data.index, y=volume_decomp.trend,
-                  name='Volume Trend', line=dict(color='orange')),
-        row=2, col=2
-    )
-    
-    fig.update_layout(height=800, title_text="Seasonal Analysis", title_x=0.5)
-    
-    # Calculate seasonal statistics
-    seasonal_stats = {
-        'price_seasonality': {
-            'peak_month': data.groupby(data.index.month)['price'].mean().idxmax(),
-            'trough_month': data.groupby(data.index.month)['price'].mean().idxmin(),
-            'seasonal_amplitude': price_decomp.seasonal.max() - price_decomp.seasonal.min()
-        },
-        'volume_seasonality': {
-            'peak_month': data.groupby(data.index.month)['volume'].mean().idxmax(),
-            'trough_month': data.groupby(data.index.month)['volume'].mean().idxmin(),
-            'seasonal_amplitude': volume_decomp.seasonal.max() - volume_decomp.seasonal.min()
-        }
-    }
-    
-    return fig, seasonal_stats
-
-# ---- Forecasting ----
-def forecast_future_values(df, route, size, forecast_periods=12):
-    """Generate forecasts for price and volume."""
-    mask = (df['route'] == route) & (df['container_size'] == size)
-    data = df[mask].copy()
-    
-    # Prepare features
-    data['month'] = data['date'].dt.month
-    data['trend'] = np.arange(len(data))
-    
-    # Create and fit models
-    price_model = LinearRegression()
-    volume_model = LinearRegression()
-    
-    X = data[['month', 'trend']]
-    price_model.fit(X, data['price'])
-    volume_model.fit(X, data['volume'])
-    
-    # Generate future dates
-    last_date = data['date'].max()
-    future_dates = pd.date_range(
-        start=last_date + timedelta(days=7),
-        periods=forecast_periods,
-        freq='W'
-    )
-    
-    # Create future features
-    future_X = pd.DataFrame({
-        'month': future_dates.month,
-        'trend': np.arange(len(data), len(data) + forecast_periods)
-    })
-    
-    # Generate predictions
-    price_forecast = price_model.predict(future_X)
-    volume_forecast = volume_model.predict(future_X)
-    
-    # Create visualization
-    fig = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=('Price Forecast', 'Volume Forecast')
-    )
-    
-    # Plot historical and forecasted prices
-    fig.add_trace(
-        go.Scatter(x=data['date'], y=data['price'],
-                  name='Historical Price', line=dict(color='blue')),
-        row=1, col=1
-    )
-    fig.add_trace(
-        go.Scatter(x=future_dates, y=price_forecast,
-                  name='Forecasted Price',
-                  line=dict(dash='dash', color='blue')),
-        row=1, col=1
-    )
-    
-    # Plot historical and forecasted volumes
-    fig.add_trace(
-        go.Scatter(x=data['date'], y=data['volume'],
-                  name='Historical Volume', line=dict(color='green')),
-        row=2, col=1
-    )
-    fig.add_trace(
-        go.Scatter(x=future_dates, y=volume_forecast,
-                  name='Forecasted Volume',
-                  line=dict(dash='dash', color='green')),
-        row=2, col=1
-    )
-    
-    fig.update_layout(height=800, title_text="12-Week Forecast", title_x=0.5)
-    
-    # Prepare forecast data
-    forecast_data = pd.DataFrame({
-        'date': future_dates,
-        'forecasted_price': price_forecast,
-        'forecasted_volume': volume_forecast
-    })
-    
-    return fig, forecast_data
-
-# ---- Route Comparison ----
-def compare_routes(df, size):
-    """Compare performance across different routes."""
-    data = df[df['container_size'] == size].copy()
-    
-    # Calculate metrics by route
-    route_metrics = data.groupby('route').agg({
-        'price': ['mean', 'std'],
-        'volume': ['mean', 'std'],
-        'revenue': ['mean', 'sum']
-    }).round(2)
-    
-    # Calculate correlations
-    price_pivot = data.pivot(index='date', columns='route', values='price')
-    price_corr = price_pivot.corr()
-    
-    # Create visualization
-    fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=('Price Comparison', 'Volume Comparison',
-                       'Revenue Comparison', 'Price Correlation')
-    )
-    
-    # Add price comparison
-    for route in data['route'].unique():
-        route_data = data[data['route'] == route]
-        fig.add_trace(
-            go.Scatter(x=route_data['date'], y=route_data['price'],
-                      name=f'{route} Price'),
-            row=1, col=1
-        )
-    
-    # Add volume comparison
-    for route in data['route'].unique():
-        route_data = data[data['route'] == route]
-        fig.add_trace(
-            go.Scatter(x=route_data['date'], y=route_data['volume'],
-                      name=f'{route} Volume'),
-            row=1, col=2
-        )
-    
-    # Add revenue comparison
-    for route in data['route'].unique():
-        route_data = data[data['route'] == route]
-        fig.add_trace(
-            go.Scatter(x=route_data['date'], y=route_data['revenue'],
-                      name=f'{route} Revenue'),
-            row=2, col=1
-        )
-    
-    # Add correlation heatmap
-    fig.add_trace(
-        go.Heatmap(z=price_corr.values,
-                   x=price_corr.index,
-                   y=price_corr.columns,
-                   colorscale='RdBu'),
-        row=2, col=2
-    )
-    
-    fig.update_layout(
-        height=1000,
-        title_text=f"Route Comparison - {size}",
-        title_x=0.5
-    )
-    
-    return fig, route_metrics, price_corr
-
-# ---- Visualization Functions ----
+# Creazione grafici impatto
 def create_impact_plot(results, height=400):
-    """Create visualization for price change impact."""
     fig = make_subplots(
         rows=1, cols=3,
         subplot_titles=('Price Impact', 'Volume Impact', 'Revenue Impact')
     )
     
-    # Add price bars
     fig.add_trace(
         go.Bar(x=['Base', 'New'], 
                y=[results['base_price'], results['new_price']],
@@ -350,7 +127,6 @@ def create_impact_plot(results, height=400):
         row=1, col=1
     )
     
-    # Add volume bars
     fig.add_trace(
         go.Bar(x=['Base', 'New'], 
                y=[results['base_volume'], results['new_volume']],
@@ -358,7 +134,6 @@ def create_impact_plot(results, height=400):
         row=1, col=2
     )
     
-    # Add revenue bars
     fig.add_trace(
         go.Bar(x=['Base', 'New'], 
                y=[results['base_revenue'], results['new_revenue']],
@@ -380,25 +155,21 @@ def create_impact_plot(results, height=400):
     return fig
 
 def create_demand_plot(results, prices, volumes, revenues, height=400):
-    """Create visualization for demand and revenue curves."""
     fig = make_subplots(
         rows=1, cols=2,
         subplot_titles=('Demand Curve', 'Revenue Curve')
     )
     
-    # Add demand curve
     fig.add_trace(
         go.Scatter(x=prices, y=volumes, mode='lines', name='Demand'),
         row=1, col=1
     )
     
-    # Add revenue curve
     fig.add_trace(
         go.Scatter(x=prices, y=revenues, mode='lines', name='Revenue'),
         row=1, col=2
     )
     
-    # Add current points
     fig.add_trace(
         go.Scatter(x=[results['new_price']], y=[results['new_volume']],
                   mode='markers', marker=dict(size=10, color='red'),
@@ -538,24 +309,20 @@ def calculate_elasticity_statistics(df, route, size):
     
     return stats
 
-
-# ---- Main Application ----
 def main():
     st.set_page_config(page_title="Dynamic Pricing Simulator", layout="wide")
     
-    # Sidebar layout settings
+    # Layout settings
     st.sidebar.header("Layout Settings")
     layout_container = st.sidebar.expander("Display Settings", expanded=False)
     with layout_container:
         chart_height = st.slider("Chart Height", 200, 800, 400, 50)
         content_width = st.slider("Content Width", 500, 2000, 1200, 100)
-        metrics_cols = st.radio("Metrics Layout", 
-                              ["2 columns", "3 columns", "4 columns"], 
-                              index=2)
+        metrics_cols = st.radio("Metrics Layout", ["2 columns", "3 columns", "4 columns"], index=2)
     
     n_cols = int(metrics_cols[0])
     
-    # Main header
+    # Header
     st.title("Dynamic Pricing Simulator")
     st.markdown("""
     This simulator helps analyze the impact of price changes on shipping volumes and revenues.
@@ -569,10 +336,8 @@ def main():
     
     # Main controls
     st.sidebar.header("Controls")
-    route = st.sidebar.selectbox("Select Route", 
-                               sorted(st.session_state.df['route'].unique()))
-    size = st.sidebar.selectbox("Select Container Size", 
-                              sorted(st.session_state.df['container_size'].unique()))
+    route = st.sidebar.selectbox("Select Route", sorted(st.session_state.df['route'].unique()))
+    size = st.sidebar.selectbox("Select Container Size", sorted(st.session_state.df['container_size'].unique()))
     
     # Custom width container
     container = st.container()
@@ -585,20 +350,12 @@ def main():
                     padding-right: 1rem;
                     padding-left: 1rem;
                     padding-bottom: 1rem
-                }}
+}}
             </style>
         """, unsafe_allow_html=True)
         
-        # Create tabs
-        tab1, tab2, tab3, tab4,tab5 = st.tabs([
-            "Price Simulation",
-            "Optimization Analysis",
-            "Data Analysis",
-            "Advanced Analytics",
-            "Elasticity Analysis",
-        ])
+        tab1, tab2, tab3 = st.tabs(["Price Simulation", "Optimization Analysis", "Data Analysis"])
         
-        # Tab 1: Price Simulation
         with tab1:
             price_change = st.slider("Price Change %", -50, 50, 0)
             
@@ -610,7 +367,6 @@ def main():
                 st.session_state.elasticities[(route, size)]
             )
             
-            # Display metrics
             cols = st.columns(n_cols)
             metrics = [
                 ("Price", f"${results['new_price']:.2f}", 
@@ -629,7 +385,6 @@ def main():
                     else:
                         st.metric(label, value)
             
-            # Display impact plots
             st.plotly_chart(
                 create_impact_plot(results, height=chart_height),
                 use_container_width=True
@@ -646,7 +401,6 @@ def main():
                 use_container_width=True
             )
         
-        # Tab 2: Optimization Analysis
         with tab2:
             test_elasticity = st.slider("Test Elasticity", -2.0, 1.0, -0.3, 0.01)
             
@@ -695,98 +449,11 @@ def main():
             )
             
             st.plotly_chart(
-                create_demand_plot(optimization_results, prices, volumes, revenues, 
-                                 height=chart_height),
+                create_demand_plot(optimization_results, prices, volumes, revenues, height=chart_height),
                 use_container_width=True
             )
-        
-        # Tab 3: Data Analysis
+            
         with tab3:
-            st.subheader("Historical Data Analysis")
-            mask = (st.session_state.df['route'] == route) & \
-                   (st.session_state.df['container_size'] == size)
-            
-            fig = make_subplots(rows=3, cols=1,
-                              subplot_titles=('Price Trend', 'Volume Trend', 'Revenue Trend'))
-            
-            data = st.session_state.df[mask].sort_values('date')
-            
-            # Price trend
-            fig.add_trace(
-                go.Scatter(x=data['date'], y=data['price'],
-                          name='Price', line=dict(color='blue')),
-                row=1, col=1
-            )
-            
-            # Volume trend
-            fig.add_trace(
-                go.Scatter(x=data['date'], y=data['volume'],
-                          name='Volume', line=dict(color='green')),
-                row=2, col=1
-            )
-            
-            # Revenue trend
-            fig.add_trace(
-                go.Scatter(x=data['date'], y=data['revenue'],
-                          name='Revenue', line=dict(color='red')),
-                row=3, col=1
-            )
-            
-            fig.update_layout(height=900, showlegend=True)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Show raw data
-            if st.checkbox("Show Raw Data"):
-                st.dataframe(data)
-        
-        # Tab 4: Advanced Analytics
-        with tab4:
-            st.header("Advanced Analytics")
-            
-            # Seasonal Analysis
-            st.subheader("Seasonal Patterns")
-            seasonal_fig, seasonal_stats = analyze_seasonality(
-                st.session_state.df, route, size
-            )
-            st.plotly_chart(seasonal_fig, use_container_width=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("#### Price Seasonality")
-                st.write(f"Peak Month: {seasonal_stats['price_seasonality']['peak_month']}")
-                st.write(f"Trough Month: {seasonal_stats['price_seasonality']['trough_month']}")
-                st.write(f"Amplitude: ${seasonal_stats['price_seasonality']['seasonal_amplitude']:.2f}")
-            
-            with col2:
-                st.markdown("#### Volume Seasonality")
-                st.write(f"Peak Month: {seasonal_stats['volume_seasonality']['peak_month']}")
-                st.write(f"Trough Month: {seasonal_stats['volume_seasonality']['trough_month']}")
-                st.write(f"Amplitude: {seasonal_stats['volume_seasonality']['seasonal_amplitude']:.0f} units")
-            
-            # Future Forecasts
-            st.subheader("Future Forecasts")
-            forecast_fig, forecast_data = forecast_future_values(
-                st.session_state.df, route, size
-            )
-            st.plotly_chart(forecast_fig, use_container_width=True)
-            
-            if st.checkbox("Show Forecast Data"):
-                st.dataframe(forecast_data)
-            
-            # Route Comparison
-            st.subheader("Route Comparison")
-            comparison_fig, route_metrics, price_corr = compare_routes(
-                st.session_state.df, size
-            )
-            st.plotly_chart(comparison_fig, use_container_width=True)
-            
-            if st.checkbox("Show Route Metrics"):
-                st.dataframe(route_metrics)
-            
-            if st.checkbox("Show Price Correlations"):
-                st.dataframe(price_corr)
-
-        with tab5:
             st.subheader("Data and Elasticity Analysis")
             
             # Mostra statistiche di elasticità
@@ -842,7 +509,6 @@ def main():
             mask = (st.session_state.df['route'] == route) & \
                    (st.session_state.df['container_size'] == size)
             st.dataframe(st.session_state.df[mask])
-
 
 if __name__ == "__main__":
     main()
