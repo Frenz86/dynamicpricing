@@ -668,7 +668,7 @@ def main():
             st.subheader("Optimization Results")
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Optimal Price", f"${optimal_price:.2f}", 
+                st.metric("Optimal Price", f"${optimal_price:.0f}", 
                          f"{((optimal_price/base_data['price'])-1)*100:.1f}%")
             with col2:
                 st.metric("Projected Volume", f"{optimal_volume:.0f}", 
