@@ -328,10 +328,11 @@ def compare_routes(df, size):
             text=np.round(price_corr_t.values, 2),  # Mostra i valori di correlazione arrotondati a 2 decimali
             texttemplate='%{text}',  # Mostra i valori numerici
             textfont={"size": 12},
-            hoverongaps=False,)
-            row=2, col=2
-        )
-        
+            hoverongaps=False
+        ),
+        row=2, col=2
+    )
+    
     fig.update_layout(
         height=1000,
         title_text=f"Route Comparison - {size}",
