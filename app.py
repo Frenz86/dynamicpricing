@@ -316,24 +316,22 @@ def compare_routes(df, size):
             row=2, col=1
         )
     
-    # Trasposizione della matrice di correlazione    
-    price_corr = price_corr.T
+    price_corr_t = price_corr.T
 
-    # Add correlation heatmap
     fig.add_trace(
-        go.Heatmap(z=price_corr.values,
-                   x=price_corr.index,
-                   y=price_corr.columns,
-                   colorscale='RdBu',
-                    showscale=False,
-                    text=np.round(price_corr.values, 2),  # Show correlation values rounded to 2 decimals
-                    texttemplate='%{text}',  # Display the text values
-                    textfont={"size": 12},
-                    hoverongaps=False
-                ),
-        row=2, col=2
-    )
-    
+        go.Heatmap(
+            z=price_corr_t.values,
+            x=price_corr_t.index,
+            y=price_corr_t.columns,
+            colorscale='RdBu',
+            showscale=False,
+            text=np.round(price_corr_t.values, 2),  # Mostra i valori di correlazione arrotondati a 2 decimali
+            texttemplate='%{text}',  # Mostra i valori numerici
+            textfont={"size": 12},
+            hoverongaps=False
+            row=2, col=2
+        )
+        
     fig.update_layout(
         height=1000,
         title_text=f"Route Comparison - {size}",
