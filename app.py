@@ -612,13 +612,13 @@ def main():
             # Display metrics
             cols = st.columns(n_cols)
             metrics = [
-                ("Price", f"${results['new_price']:.2f}", 
+                ("Price", f"${results['new_price']:.0f}", 
                  f"{((results['new_price']/results['base_price'])-1)*100:.1f}%"),
                 ("Volume", f"{results['new_volume']:.0f}", 
                  f"{((results['new_volume']/results['base_volume'])-1)*100:.1f}%"),
                 ("Revenue", f"${results['new_revenue']:,.0f}", 
                  f"{results['revenue_change_pct']:.1f}%"),
-                ("Elasticity", f"{results['elasticity']:.3f}", None)
+                ("Elasticity", f"{results['elasticity']:.2f}", None)
             ]
             
             for i, (label, value, delta) in enumerate(metrics):
