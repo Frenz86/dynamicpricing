@@ -321,7 +321,9 @@ def compare_routes(df, size):
         go.Heatmap(z=price_corr.values,
                    x=price_corr.index,
                    y=price_corr.columns,
-                   colorscale='RdBu'),
+                   colorscale='RdBu',
+                    showscale=False),
+
         row=2, col=2
     )
     
