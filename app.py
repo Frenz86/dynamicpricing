@@ -330,7 +330,7 @@ def compare_routes(df, size):
             textfont={"size": 12},
             hoverongaps=False
             row=2, col=2
-        )
+        ))
         
     fig.update_layout(
         height=1000,
