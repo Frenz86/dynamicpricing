@@ -316,6 +316,9 @@ def compare_routes(df, size):
             row=2, col=1
         )
     
+    # Trasposizione della matrice di correlazione    
+    price_corr = price_corr.T
+
     # Add correlation heatmap
     fig.add_trace(
         go.Heatmap(z=price_corr.values,
