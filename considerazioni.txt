@@ -1,0 +1,25 @@
+price_pct_change = route_data['price'].pct_change()     # Variazione % del prezzo
+volume_pct_change = route_data['volume'].pct_change()   # Variazione % del volume
+
+Il metodo pct_change() calcola la variazione percentuale tra ogni valore successivo nella serie.
+
+# Calcola l'elasticità puntuale per ogni coppia di variazioni
+point_elasticities = volume_pct_change[valid_mask] / price_pct_change[valid_mask]
+# Prende la mediana come valore rappresentativo
+elasticity = point_elasticities.median()
+
+L'elasticità viene calcolata come:
+CopyElasticità = (Variazione % Volume) / (Variazione % Prezzo)
+
+Se il prezzo aumenta del 10% e il volume diminuisce del -20%
+Elasticità = -20% / 10% = -2
+Significa che per ogni 1% di aumento del prezzo, il volume diminuisce del 2%
+
+Un'elasticità:
+
+Negativa indica una relazione inversa (più comune)
+Maggiore di |1| indica una domanda elastica
+Minore di |1| indica una domanda anelastica
+Uguale a |1| indica una domanda unitariamente elastica
+
+Il codice usa la mediana invece della media per essere più robusto rispetto a valori estremi.

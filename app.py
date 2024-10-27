@@ -402,7 +402,7 @@ def main():
             )
         
         with tab2:
-            test_elasticity = st.slider("Test Elasticity", -2.0, -0.1, -0.3, 0.1)
+            test_elasticity = st.slider("Test Elasticity", -2.0, 1.0, -0.3, 0.01)
             
             base_data = st.session_state.df[
                 (st.session_state.df['route'] == route) & 
