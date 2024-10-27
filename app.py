@@ -323,7 +323,7 @@ def main():
     n_cols = int(metrics_cols[0])
     
     # Header
-    st.title("Captain GPT: Dynamic Pricing Simulator")
+    st.title("Dynamic Pricing Simulator")
     st.markdown("""
     This simulator helps analyze the impact of price changes on shipping volumes and revenues.
     It uses historical data to estimate price elasticity and provide optimization suggestions.
