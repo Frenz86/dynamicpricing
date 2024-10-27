@@ -322,8 +322,12 @@ def compare_routes(df, size):
                    x=price_corr.index,
                    y=price_corr.columns,
                    colorscale='RdBu',
-                    showscale=False),
-
+                    showscale=False,
+                    text=np.round(price_corr.values, 2),  # Show correlation values rounded to 2 decimals
+                    texttemplate='%{text}',  # Display the text values
+                    textfont={"size": 12},
+                    hoverongaps=False
+                ),
         row=2, col=2
     )
     
