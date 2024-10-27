@@ -7,7 +7,6 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 from statsmodels.tsa.seasonal import seasonal_decompose
 from sklearn.linear_model import LinearRegression
-from scipy import stats
 
 # ---- Data Generation ----
 def generate_sample_data(n_weeks=52):
